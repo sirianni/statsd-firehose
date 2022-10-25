@@ -3,17 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	dataDogStatsd "github.com/DataDog/datadog-go/statsd"
 	"github.com/stvp/clock"
-	"github.com/stvp/gostatsd"
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
 var (
 	// Settings
-	statsdUrl        = flag.String("statsd", "statsd://127.0.0.1:8125/firehose.", "Statsd URL including a prefix for all metrics")
+	statsdUrl        = flag.String("statsd", "127.0.0.1:8125", "Statsd URL")
 	statsdPacketSize = flag.Int("packetsize", 512, "UDP packet size for metrics sent to statsd")
 
 	gaugeCount    = flag.Int("gaugecount", 50000, "Number of individual gauges to run")
@@ -22,17 +23,35 @@ var (
 	counterCount    = flag.Int("countcount", 50000, "Number of individual counters to run")
 	counterInterval = flag.Int("countinterval", 60, "Gauge update interval, in seconds")
 
+	verbose = flag.Bool("verbose", false, "Verbose print")
+	tags    = flag.String("tags", "source:firehose", "Comma-separated list of tags to send with each metrics")
+
+	namespace = flag.String("namespace", "firehose", "Namespace for firehose metrics")
+
+	tagsArr []string
+
 	// Statistics
 	gaugesUpdated   = 0
 	countersUpdated = 0
 
 	// Globals
-	client statsd.Client
+	client *dataDogStatsd.Client
 )
 
 func setup() {
 	flag.Parse()
-	statsd.Setup(*statsdUrl, *statsdPacketSize)
+	var err error
+	client, err = dataDogStatsd.New(
+		*statsdUrl,
+		dataDogStatsd.WithMaxBytesPerPayload(*statsdPacketSize),
+		dataDogStatsd.WithNamespace(*namespace),
+		dataDogStatsd.WithoutTelemetry(),
+	)
+	if err != nil {
+		log.Println("failed to create statsd client", err.Error())
+		panic(err)
+	}
+	tagsArr = strings.Split(*tags, ",")
 	log.SetOutput(os.Stdout)
 }
 
@@ -47,7 +66,8 @@ func runGauges(count int, interval time.Duration) {
 	c.Start()
 
 	for key := range c.Channel {
-		statsd.Gauge(key, rand.NormFloat64())
+		client.Gauge(key, rand.NormFloat64(), tagsArr, 1)
+		verbosePrint("gauge: ", key)
 		gaugesUpdated++
 	}
 }
@@ -63,7 +83,8 @@ func runCounters(count int, interval time.Duration) {
 	c.Start()
 
 	for key := range c.Channel {
-		statsd.Count(key, 1.0, 1.0)
+		client.Count(key, 1, tagsArr, 1)
+		verbosePrint("count: ", key)
 		countersUpdated++
 	}
 }
@@ -79,9 +100,15 @@ func keys(prefix string, count int) chan string {
 	return c
 }
 
+func verbosePrint(v ...any) {
+	if *verbose {
+		log.Println(v...)
+	}
+}
+
 func main() {
 	setup()
-
+	log.Println("using the following config:", "statsdUrl", *statsdUrl, "statsdPacketSize", *statsdPacketSize, "gaugeCount", *gaugeCount, "gaugeInterval", *gaugeInterval, "counterCount", *counterCount, "counterInterval", *counterInterval, "verbose", *verbose)
 	// Logging
 	go func() {
 		for _ = range time.Tick(time.Second) {
