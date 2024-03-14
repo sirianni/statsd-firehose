@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	dataDogStatsd "github.com/DataDog/datadog-go/statsd"
-	"github.com/stvp/clock"
 	"log"
 	"math/rand"
 	"os"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	dataDogStatsd "github.com/DataDog/datadog-go/statsd"
+	"github.com/stvp/clock"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 	gaugeFreq     = flag.Int("gaugefreq", 1, "How many times to update each individual gauge per interval")
 
 	counterCount    = flag.Int("countcount", 0, "Number of individual counters to run")
-	counterInterval = flag.Int("countinterval", 1, "Gauge update interval, in seconds")
+	counterInterval = flag.Int("countinterval", 1, "Count update interval, in seconds")
 	counterFreq     = flag.Int("countfreq", 1, "How many times to update each individual count per interval")
 
 	distCount    = flag.Int("distcount", 0, "Number of individual distributions to run")
