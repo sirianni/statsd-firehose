@@ -6,8 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	dataDogStatsd "github.com/DataDog/datadog-go/statsd"
@@ -183,6 +185,15 @@ func verbosePrint(v ...any) {
 
 func main() {
 	setup()
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		onExit()
+		os.Exit(1)
+	}()
+
 	// Logging
 	go func() {
 		for _ = range time.Tick(time.Second) {
@@ -205,4 +216,12 @@ func main() {
 
 	// Wait for Ctrl-C
 	<-make(chan bool)
+}
+
+func onExit() {
+	log.Printf(":: FINAL TOTALS")
+	log.Printf("gauges updated: %d", gaugesUpdated)
+	log.Printf("counters updated: %d", countersUpdated)
+	log.Printf("dists updated: %d", distUpdated)
+	log.Printf("hists updated: %d", histUpdated)
 }
