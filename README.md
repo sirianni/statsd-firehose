@@ -6,7 +6,7 @@ and, more importantly, whatever you have behind statsd. In my case, that's
 carbon-cache, whisper, and network-attached SSDs.
 
 ```
-    Usage of ./build/darwin-amd64/statsd-firehose:
+    Usage of ./statsd-firehose:
       -countcount int
             Number of individual counters to run
       -countfreq int
